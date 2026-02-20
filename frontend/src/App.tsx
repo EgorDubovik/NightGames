@@ -39,10 +39,6 @@ function App() {
       return () => window.clearInterval(timer);
    }, []);
 
-   useEffect(() => {
-      window.lucide?.createIcons();
-   }, [currentTime, scheduleMap]);
-
    const kyivToday = useMemo(() => formatKyivYmd(currentTime), [currentTime]);
    const kyivRangeEnd = useMemo(() => {
       const start = parseYmdToUtcNoon(kyivToday);

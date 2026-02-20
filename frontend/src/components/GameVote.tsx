@@ -25,10 +25,6 @@ function GameVote({ games }: GameVoteProps) {
     setUserVoted((prev) => (prev !== null && gameIds.has(prev) ? prev : null));
   }, [games, gameIds]);
 
-  useEffect(() => {
-    window.lucide?.createIcons();
-  }, [votes, userVoted]);
-
   const handleVote = (gameId: number) => {
     if (!votingActive) return;
 
@@ -54,14 +50,18 @@ function GameVote({ games }: GameVoteProps) {
   };
 
   const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
-  const sortedGames = [...games].sort((a, b) => (votes[b.id] || 0) - (votes[a.id] || 0));
-  const winningGame = sortedGames[0];
+  const winningGame = games.reduce<Game | null>((leader, game) => {
+    if (!leader) return game;
+    return (votes[game.id] ?? 0) > (votes[leader.id] ?? 0) ? game : leader;
+  }, null);
 
   return (
     <div className="glass-panel rounded-lg p-6 border-cyber h-full">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-cyber-primary/10 border border-cyber-primary/30"><i data-lucide="bar-chart-3" className="w-5 h-5 text-cyber-primary"></i></div>
+          <div className="p-2 rounded-lg bg-cyber-primary/10 border border-cyber-primary/30">
+            <span className="w-5 h-5 text-cyber-primary inline-flex items-center justify-center font-mono text-xs font-bold">STAT</span>
+          </div>
           <div><h2 className="font-mono text-xl font-bold text-white uppercase tracking-wider">Mission Select</h2><p className="text-xs text-cyber-muted font-mono mt-0.5">Tactical Voting Interface | {totalVotes} Votes Cast</p></div>
         </div>
         <div className="flex items-center gap-2"><span className={`w-2 h-2 rounded-full ${votingActive ? "bg-cyber-success animate-pulse" : "bg-cyber-muted"}`}></span><span className="text-xs font-mono text-cyber-muted uppercase">{votingActive ? "Voting Active" : "Locked"}</span></div>
@@ -73,7 +73,9 @@ function GameVote({ games }: GameVoteProps) {
           <div className="relative flex items-center gap-4">
             <div className="flex-shrink-0">
               <img src={winningGame.image} alt={winningGame.title} className="w-16 h-16 rounded-lg object-cover border-2 border-cyber-success shadow-[0_0_15px_rgba(0,255,157,0.3)]" />
-              <div className="absolute -top-1 -left-1 w-6 h-6 bg-cyber-success rounded-full flex items-center justify-center border-2 border-cyber-black"><i data-lucide="crown" className="w-3 h-3 text-cyber-black"></i></div>
+              <div className="absolute -top-1 -left-1 w-6 h-6 bg-cyber-success rounded-full flex items-center justify-center border-2 border-cyber-black">
+                <span className="text-[10px] font-mono font-bold text-cyber-black">W</span>
+              </div>
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1"><span className="text-[10px] font-mono text-cyber-success uppercase tracking-widest font-bold bg-cyber-success/20 px-2 py-0.5 rounded">Current Winner</span><span className="text-[10px] font-mono text-cyber-muted">{Math.round((votes[winningGame.id] / totalVotes) * 100)}% Consensus</span></div>
@@ -86,10 +88,10 @@ function GameVote({ games }: GameVoteProps) {
       )}
 
       <div className="space-y-3">
-        {sortedGames.map((game, index) => {
+        {games.map((game, index) => {
           const voteCount = votes[game.id] || 0;
           const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-          const isWinner = index === 0 && voteCount > 0;
+          const isWinner = winningGame?.id === game.id && voteCount > 0;
           const isSelected = userVoted === game.id;
 
           return (
@@ -102,7 +104,9 @@ function GameVote({ games }: GameVoteProps) {
                   <div className="flex items-center gap-3 text-xs"><span className="text-cyber-muted">{game.genre}</span><span className="w-1 h-1 rounded-full bg-cyber-muted"></span><span className={`font-mono ${isWinner ? "text-cyber-success" : "text-cyber-muted"}`}>{voteCount} {voteCount === 1 ? "vote" : "votes"}</span></div>
                 </div>
                 <div className="text-right"><div className={`text-lg font-bold font-mono ${isSelected ? "text-cyber-primary" : isWinner ? "text-cyber-success" : "text-white"}`}>{percentage}%</div><div className="text-[10px] text-cyber-muted uppercase tracking-wider">{isSelected ? "Your Pick" : "Click to Vote"}</div></div>
-                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? "border-cyber-primary bg-cyber-primary" : "border-white/20 group-hover:border-cyber-primary/50"}`}>{isSelected && <i data-lucide="check" className="w-3 h-3 text-cyber-black"></i>}</div>
+                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? "border-cyber-primary bg-cyber-primary" : "border-white/20 group-hover:border-cyber-primary/50"}`}>
+                  {isSelected && <span className="text-[10px] font-mono font-bold text-cyber-black">OK</span>}
+                </div>
               </div>
             </div>
           );
@@ -110,8 +114,16 @@ function GameVote({ games }: GameVoteProps) {
       </div>
 
       <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-4 font-mono text-cyber-muted"><span className="flex items-center gap-1"><i data-lucide="clock" className="w-3 h-3"></i>Closes in 2h 14m</span><span className="flex items-center gap-1"><i data-lucide="users" className="w-3 h-3"></i>3/4 voted</span></div>
-        {userVoted !== null && <button onClick={clearVote} className="text-cyber-secondary hover:text-white transition-colors font-mono text-xs uppercase flex items-center gap-1"><i data-lucide="refresh-cw" className="w-3 h-3"></i>Change Vote</button>}
+        <div className="flex items-center gap-4 font-mono text-cyber-muted">
+          <span className="flex items-center gap-1"><span className="text-[10px]">T</span>Closes in 2h 14m</span>
+          <span className="flex items-center gap-1"><span className="text-[10px]">U</span>3/4 voted</span>
+        </div>
+        {userVoted !== null && (
+          <button onClick={clearVote} className="text-cyber-secondary hover:text-white transition-colors font-mono text-xs uppercase flex items-center gap-1">
+            <span className="text-[10px]">R</span>
+            Change Vote
+          </button>
+        )}
       </div>
     </div>
   );
