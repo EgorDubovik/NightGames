@@ -2,7 +2,7 @@ services:
   nightgames-frontend:
     container_name: nightgames-frontend
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
     ports:
       - "${NIGHTGAMES_PORT:-8088}:80"
