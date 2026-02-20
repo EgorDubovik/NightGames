@@ -18,6 +18,39 @@ npm run build
 npm run preview
 ```
 
+## Деплой Через Docker Compose
+
+1. Локально собери фронтенд:
+
+```bash
+npm run build
+```
+
+2. Создай файл `.env` в папке `frontend` на сервере:
+
+```env
+NIGHTGAMES_PORT=8088
+```
+
+3. Запусти:
+
+```bash
+docker compose up -d --build
+```
+
+4. Открой:
+
+```text
+http://SERVER_IP:8088
+```
+
+Остановить/обновить:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
 ## Структура
 
 - `index.html` - точка входа HTML (Tailwind CDN + Lucide CDN)
