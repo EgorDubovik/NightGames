@@ -1,28 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import Achievements from "./components/Achievements";
+import AlexAvailable from "./components/AlexAvailable";
 import ConnectionStatus from "./components/ConnectionStatus";
 import GameVote from "./components/GameVote";
 import TimeSync from "./components/TimeSync";
-import type { Game } from "./types";
+import type { Game, ScheduleDay } from "./types";
 
 const UA_TIMEZONE = "Europe/Kyiv";
-const US_TIMEZONE = "America/New_York";
 const SCHEDULE_DAYS = 14;
 const STORAGE_KEY = "alex-availability-v1";
-
-interface ScheduleDay {
-   key: string;
-   date: Date;
-   dayName: string;
-   dayNumber: string;
-   monthName: string;
-   isOff: boolean;
-   isNightGame: boolean;
-}
-
-interface TimeWithDayShift {
-   time: string;
-   dayShift: -1 | 0 | 1;
-}
 
 function parseYmdToUtcNoon(ymd: string): Date {
    const [year, month, day] = ymd.split("-").map(Number);
@@ -36,40 +22,6 @@ function formatKyivYmd(date: Date): string {
       month: "2-digit",
       day: "2-digit",
    }).format(date);
-}
-
-function getOffsetMinutes(date: Date, timeZone: string): number {
-   const zonedDate = new Date(date.toLocaleString("en-US", { timeZone }));
-   return Math.round((zonedDate.getTime() - date.getTime()) / 60000);
-}
-
-function formatTimeWithDayShift(totalMinutes: number): TimeWithDayShift {
-   let normalized = totalMinutes;
-   let dayShift = 0;
-
-   while (normalized < 0) {
-      normalized += 1440;
-      dayShift -= 1;
-   }
-
-   while (normalized >= 1440) {
-      normalized -= 1440;
-      dayShift += 1;
-   }
-
-   const hours = Math.floor(normalized / 60);
-   const minutes = normalized % 60;
-
-   return {
-      time: `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`,
-      dayShift: dayShift as -1 | 0 | 1,
-   };
-}
-
-function dayShiftLabel(dayShift: -1 | 0 | 1): string {
-   if (dayShift === -1) return "previous day";
-   if (dayShift === 1) return "next day";
-   return "same day";
 }
 
 function App() {
@@ -141,29 +93,6 @@ function App() {
          isNightGame: index < rawDays.length - 1 && rawDays[index + 1].isOff,
       }));
    }, [kyivToday, scheduleMap]);
-
-   const formatUsWindow = (
-      day: ScheduleDay,
-   ): { start: TimeWithDayShift; end: TimeWithDayShift } => {
-      const uaOffset = getOffsetMinutes(day.date, UA_TIMEZONE);
-      const usOffset = getOffsetMinutes(day.date, US_TIMEZONE);
-      const offsetDiff = usOffset - uaOffset;
-
-      const uaStartMinutes = 22 * 60 + 30;
-      const uaEndMinutes = 26 * 60 + 30;
-
-      return {
-         start: formatTimeWithDayShift(uaStartMinutes + offsetDiff),
-         end: formatTimeWithDayShift(uaEndMinutes + offsetDiff),
-      };
-   };
-
-   const upcomingNightGames = useMemo(
-      () => scheduleDays.filter((day) => day.isNightGame),
-      [scheduleDays],
-   );
-   const nextNightGame = upcomingNightGames[0] ?? null;
-   const nextUsWindow = nextNightGame ? formatUsWindow(nextNightGame) : null;
 
    const games = useMemo<Game[]>(
       () => [
@@ -266,40 +195,7 @@ function App() {
 
             <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                <div className="lg:col-span-2 space-y-6">
-                  <div className="glass-panel rounded-lg p-6 border-cyber border-cyber-secondary/30">
-                     <h3 className="font-mono text-lg font-bold text-white mb-4 flex items-center gap-2">
-                        <i
-                           data-lucide="sparkles"
-                           className="w-5 h-5 text-cyber-secondary"
-                        ></i>
-                        NEXT NIGHT GAME
-                     </h3>
-                     {!nextNightGame && (
-                        <p className="text-sm text-cyber-muted font-mono">
-                           No upcoming slot in current plan.
-                        </p>
-                     )}
-                     {nextNightGame && nextUsWindow && (
-                        <div className="p-3 rounded-lg border border-white/10 bg-black/20">
-                           <p className="text-sm font-mono text-white">
-                              {nextNightGame.dayName}, {nextNightGame.monthName}{" "}
-                              {nextNightGame.dayNumber}
-                           </p>
-                           <p className="text-[11px] text-cyber-secondary font-mono mt-1">
-                              UA: 22:30 to 02:30
-                           </p>
-                           <p className="text-[11px] text-cyber-primary font-mono">
-                              US: {nextUsWindow.start.time} to{" "}
-                              {nextUsWindow.end.time}
-                           </p>
-                           <p className="text-[10px] text-gray-500 font-mono uppercase">
-                              US day shift:{" "}
-                              {dayShiftLabel(nextUsWindow.start.dayShift)} /{" "}
-                              {dayShiftLabel(nextUsWindow.end.dayShift)}
-                           </p>
-                        </div>
-                     )}
-                  </div>
+                  <Achievements />
 
                   <div className="glass-panel rounded-lg p-6 border-cyber">
                      <div className="flex items-center justify-between mb-4">
@@ -319,66 +215,10 @@ function App() {
                </div>
 
                <div className="space-y-6">
-                  <div className="glass-panel rounded-lg p-6 border-cyber">
-                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-mono text-lg font-bold text-white flex items-center gap-2">
-                           <i
-                              data-lucide="calendar-days"
-                              className="w-5 h-5 text-cyber-primary"
-                           ></i>
-                           ALEX AVAILABLE
-                        </h3>
-                        <p className="text-[10px] text-cyber-muted font-mono uppercase">
-                           Tap to toggle
-                        </p>
-                     </div>
-
-                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {scheduleDays.map((day) => (
-                           <button
-                              key={day.key}
-                              onClick={() => toggleDay(day.key)}
-                              className={`text-left rounded-lg p-2 border transition-all ${
-                                 day.isNightGame
-                                    ? "border-cyber-primary bg-cyber-primary/10"
-                                    : day.isOff
-                                      ? "border-cyber-success/40 bg-cyber-success/10"
-                                      : "border-white/10 bg-black/20 hover:border-cyber-warning/40"
-                              }`}
-                           >
-                              <p className="font-mono text-[12px] whitespace-nowrap overflow-hidden text-ellipsis">
-                                 <span className="text-cyber-muted">
-                                    {day.dayName}
-                                 </span>{" "}
-                                 <span className="text-white font-bold">
-                                    {day.dayNumber} {day.monthName}
-                                 </span>{" "}
-                                 <span
-                                    className={
-                                       day.isOff
-                                          ? "text-cyber-success"
-                                          : "text-cyber-warning"
-                                    }
-                                 >
-                                    {day.isOff ? "Off" : "Work"}
-                                 </span>
-                              </p>
-                           </button>
-                        ))}
-                     </div>
-
-                     <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-2 text-[10px] font-mono">
-                        <span className="px-2 py-0.5 rounded bg-cyber-warning/20 text-cyber-warning">
-                           Work
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-cyber-success/20 text-cyber-success">
-                           Off
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-cyber-primary/20 text-cyber-primary">
-                           Night Game
-                        </span>
-                     </div>
-                  </div>
+                  <AlexAvailable
+                     scheduleDays={scheduleDays}
+                     onToggleDay={toggleDay}
+                  />
 
                   <div className="glass-panel rounded-lg p-4 border border-cyber-warning/30 bg-cyber-warning/5">
                      <div className="flex items-start gap-3">

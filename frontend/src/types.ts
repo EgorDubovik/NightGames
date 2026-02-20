@@ -21,3 +21,13 @@ export interface Game {
   lastPlayed: string;
   playersReady: number;
 }
+
+export interface ScheduleDay {
+  key: string;
+  date: Date;
+  dayName: string;
+  dayNumber: string;
+  monthName: string;
+  isOff: boolean;
+  isNightGame: boolean;
+}
