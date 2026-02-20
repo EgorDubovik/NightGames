@@ -3,9 +3,16 @@ import type { ScheduleDay } from "../types";
 interface AlexAvailableProps {
    scheduleDays: ScheduleDay[];
    onToggleDay: (dayKey: string) => void;
+   isLoading?: boolean;
+   errorMessage?: string | null;
 }
 
-function AlexAvailable({ scheduleDays, onToggleDay }: AlexAvailableProps) {
+function AlexAvailable({
+   scheduleDays,
+   onToggleDay,
+   isLoading = false,
+   errorMessage = null,
+}: AlexAvailableProps) {
    return (
       <div className="glass-panel rounded-lg p-6 border-cyber">
          <div className="flex items-center justify-between mb-4">
@@ -17,21 +24,28 @@ function AlexAvailable({ scheduleDays, onToggleDay }: AlexAvailableProps) {
                ALEX AVAILABLE
             </h3>
             <p className="text-[10px] text-cyber-muted font-mono uppercase">
-               Tap to toggle
+               {isLoading ? "Syncing..." : "Tap to toggle"}
             </p>
          </div>
+
+         {errorMessage && (
+            <p className="mb-3 text-[11px] font-mono text-cyber-warning">
+               {errorMessage}
+            </p>
+         )}
 
          <div className="space-y-2">
             {scheduleDays.map((day) => (
                <button
                   key={day.key}
                   onClick={() => onToggleDay(day.key)}
+                  disabled={isLoading}
                   className={`w-full text-left rounded-lg px-3 py-2 border transition-all ${
                      day.isNightGame
                         ? "border-cyber-primary bg-cyber-primary/10"
                         : day.isOff
-                          ? "border-cyber-success/40 bg-cyber-success/10"
-                          : "border-white/10 bg-black/20 hover:border-cyber-warning/40"
+                         ? "border-cyber-success/40 bg-cyber-success/10"
+                         : "border-white/10 bg-black/20 hover:border-cyber-warning/40"
                   }`}
                >
                   <div className="flex items-center justify-between gap-2 font-mono text-[14px] whitespace-nowrap">

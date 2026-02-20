@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Game } from "../types";
 
 interface GameVoteProps {
@@ -6,9 +6,24 @@ interface GameVoteProps {
 }
 
 function GameVote({ games }: GameVoteProps) {
-  const [votes, setVotes] = useState<Record<number, number>>({ 1: 2, 2: 1, 3: 0, 4: 1 });
+  const [votes, setVotes] = useState<Record<number, number>>({});
   const [userVoted, setUserVoted] = useState<number | null>(null);
   const [votingActive] = useState(true);
+
+  const gameIds = useMemo(() => new Set(games.map((game) => game.id)), [games]);
+
+  useEffect(() => {
+    // Initialize unknown games with zero votes and drop stale game ids.
+    setVotes((prev) => {
+      const next: Record<number, number> = {};
+      games.forEach((game) => {
+        next[game.id] = prev[game.id] ?? 0;
+      });
+      return next;
+    });
+
+    setUserVoted((prev) => (prev !== null && gameIds.has(prev) ? prev : null));
+  }, [games, gameIds]);
 
   useEffect(() => {
     window.lucide?.createIcons();
@@ -20,12 +35,22 @@ function GameVote({ games }: GameVoteProps) {
     setVotes((prev) => {
       const newVotes = { ...prev };
       if (userVoted !== null) {
-        newVotes[userVoted] = Math.max(0, newVotes[userVoted] - 1);
+        newVotes[userVoted] = Math.max(0, (newVotes[userVoted] ?? 0) - 1);
       }
       newVotes[gameId] = (newVotes[gameId] || 0) + 1;
       return newVotes;
     });
     setUserVoted(gameId);
+  };
+
+  const clearVote = () => {
+    if (userVoted === null) return;
+
+    setVotes((prev) => ({
+      ...prev,
+      [userVoted]: Math.max(0, (prev[userVoted] ?? 0) - 1),
+    }));
+    setUserVoted(null);
   };
 
   const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
@@ -86,7 +111,7 @@ function GameVote({ games }: GameVoteProps) {
 
       <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
         <div className="flex items-center gap-4 font-mono text-cyber-muted"><span className="flex items-center gap-1"><i data-lucide="clock" className="w-3 h-3"></i>Closes in 2h 14m</span><span className="flex items-center gap-1"><i data-lucide="users" className="w-3 h-3"></i>3/4 voted</span></div>
-        {userVoted !== null && <button onClick={() => setUserVoted(null)} className="text-cyber-secondary hover:text-white transition-colors font-mono text-xs uppercase flex items-center gap-1"><i data-lucide="refresh-cw" className="w-3 h-3"></i>Change Vote</button>}
+        {userVoted !== null && <button onClick={clearVote} className="text-cyber-secondary hover:text-white transition-colors font-mono text-xs uppercase flex items-center gap-1"><i data-lucide="refresh-cw" className="w-3 h-3"></i>Change Vote</button>}
       </div>
     </div>
   );

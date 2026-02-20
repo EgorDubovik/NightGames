@@ -4,11 +4,15 @@ import AlexAvailable from "./components/AlexAvailable";
 import ConnectionStatus from "./components/ConnectionStatus";
 import GameVote from "./components/GameVote";
 import TimeSync from "./components/TimeSync";
+import {
+   isSupabaseConfigured,
+   scheduleTableName,
+   supabase,
+} from "./lib/supabase";
 import type { Game, ScheduleDay } from "./types";
 
 const UA_TIMEZONE = "Europe/Kyiv";
 const SCHEDULE_DAYS = 14;
-const STORAGE_KEY = "alex-availability-v1";
 
 function parseYmdToUtcNoon(ymd: string): Date {
    const [year, month, day] = ymd.split("-").map(Number);
@@ -27,6 +31,8 @@ function formatKyivYmd(date: Date): string {
 function App() {
    const [currentTime, setCurrentTime] = useState(new Date());
    const [scheduleMap, setScheduleMap] = useState<Record<string, boolean>>({});
+   const [isScheduleLoading, setIsScheduleLoading] = useState(false);
+   const [scheduleError, setScheduleError] = useState<string | null>(null);
 
    useEffect(() => {
       const timer = window.setInterval(() => setCurrentTime(new Date()), 1000);
@@ -34,26 +40,62 @@ function App() {
    }, []);
 
    useEffect(() => {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (!saved) return;
-
-      try {
-         const parsed = JSON.parse(saved) as Record<string, boolean>;
-         setScheduleMap(parsed);
-      } catch {
-         setScheduleMap({});
-      }
-   }, []);
-
-   useEffect(() => {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(scheduleMap));
-   }, [scheduleMap]);
-
-   useEffect(() => {
       window.lucide?.createIcons();
    }, [currentTime, scheduleMap]);
 
    const kyivToday = useMemo(() => formatKyivYmd(currentTime), [currentTime]);
+   const kyivRangeEnd = useMemo(() => {
+      const start = parseYmdToUtcNoon(kyivToday);
+      const endDate = new Date(
+         start.getTime() + (SCHEDULE_DAYS - 1) * 24 * 60 * 60 * 1000,
+      );
+      return formatKyivYmd(endDate);
+   }, [kyivToday]);
+
+   useEffect(() => {
+      const db = supabase;
+      if (!isSupabaseConfigured || !db) {
+         setScheduleError(
+            "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.",
+         );
+         return;
+      }
+
+      let isCancelled = false;
+
+      const loadSchedule = async () => {
+         setIsScheduleLoading(true);
+         setScheduleError(null);
+
+         const { data, error } = await db
+            .from(scheduleTableName)
+            .select("date,is_off")
+            .gte("date", kyivToday)
+            .lte("date", kyivRangeEnd);
+
+         if (isCancelled) return;
+
+         if (error) {
+            setScheduleError(error.message);
+            setIsScheduleLoading(false);
+            return;
+         }
+
+         const nextMap: Record<string, boolean> = {};
+         (data ?? []).forEach((row: { date: string; is_off: boolean }) => {
+            nextMap[row.date] = row.is_off;
+         });
+
+         setScheduleMap(nextMap);
+         setIsScheduleLoading(false);
+      };
+
+      void loadSchedule();
+
+      return () => {
+         isCancelled = true;
+      };
+   }, [kyivToday, kyivRangeEnd]);
 
    const scheduleDays = useMemo<ScheduleDay[]>(() => {
       const start = parseYmdToUtcNoon(kyivToday);
@@ -74,8 +116,7 @@ function App() {
             timeZone: UA_TIMEZONE,
             month: "short",
          }).format(dayDate);
-         const weekend = weekday === "Sat" || weekday === "Sun";
-         const isOff = scheduleMap[key] ?? weekend;
+         const isOff = scheduleMap[key] ?? false;
 
          return {
             key,
@@ -136,16 +177,55 @@ function App() {
       [],
    );
 
-   const toggleDay = (dayKey: string) => {
+   const toggleDay = async (dayKey: string) => {
+      const db = supabase;
+      if (!isSupabaseConfigured || !db) return;
+
+      setScheduleError(null);
+      const previousValue = scheduleMap[dayKey] ?? false;
+      const nextValue = !previousValue;
+
       setScheduleMap((prev) => {
          const next = { ...prev };
-         next[dayKey] = !(prev[dayKey] ?? false);
+         next[dayKey] = nextValue;
          return next;
       });
+
+      const { error } = await db
+         .from(scheduleTableName)
+         .upsert({ date: dayKey, is_off: nextValue }, { onConflict: "date" });
+
+      if (error) {
+         setScheduleMap((prev) => {
+            const next = { ...prev };
+            next[dayKey] = previousValue;
+            return next;
+         });
+         setScheduleError(error.message);
+      }
    };
 
-   const resetToWeekends = () => {
+   const resetToWeekends = async () => {
+      const db = supabase;
+      if (!isSupabaseConfigured || !db) return;
+
+      setIsScheduleLoading(true);
+      setScheduleError(null);
+
+      const { error } = await db
+         .from(scheduleTableName)
+         .delete()
+         .gte("date", kyivToday)
+         .lte("date", kyivRangeEnd);
+
+      if (error) {
+         setScheduleError(error.message);
+         setIsScheduleLoading(false);
+         return;
+      }
+
       setScheduleMap({});
+      setIsScheduleLoading(false);
    };
 
    return (
@@ -218,6 +298,8 @@ function App() {
                   <AlexAvailable
                      scheduleDays={scheduleDays}
                      onToggleDay={toggleDay}
+                     isLoading={isScheduleLoading}
+                     errorMessage={scheduleError}
                   />
 
                   <div className="glass-panel rounded-lg p-4 border border-cyber-warning/30 bg-cyber-warning/5">
