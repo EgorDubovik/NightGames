@@ -1,0 +1,98 @@
+import { useEffect, useMemo, useState } from "react";
+import ConnectionStatus from "./components/ConnectionStatus";
+import Countdown from "./components/Countdown";
+import GameVote from "./components/GameVote";
+import TimeSync from "./components/TimeSync";
+import type { Game } from "./types";
+
+function App() {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    window.lucide?.createIcons();
+  }, [currentTime]);
+
+  const games = useMemo<Game[]>(
+    () => [
+      { id: 1, title: "Apex Legends", genre: "Battle Royale", image: "http://static.photos/gaming/640x360/1", crossplay: true, lastPlayed: "2 days ago", playersReady: 3 },
+      { id: 2, title: "Rocket League", genre: "Sports", image: "http://static.photos/gaming/640x360/2", crossplay: true, lastPlayed: "Yesterday", playersReady: 2 },
+      { id: 3, title: "Call of Duty", genre: "FPS", image: "http://static.photos/gaming/640x360/3", crossplay: true, lastPlayed: "1 week ago", playersReady: 4 },
+      { id: 4, title: "It Takes Two", genre: "Co-op Adventure", image: "http://static.photos/gaming/640x360/4", crossplay: false, lastPlayed: "3 weeks ago", playersReady: 2 },
+    ],
+    []
+  );
+
+  return (
+    <div className="min-h-screen relative">
+      <div className="scanlines"></div>
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 animate-grid opacity-20">
+          <div className="h-full w-full" style={{ backgroundImage: "linear-gradient(rgba(0, 240, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 240, 255, 0.1) 1px, transparent 1px)", backgroundSize: "100px 100px" }}></div>
+        </div>
+      </div>
+
+      <div className="relative z-10 container mx-auto px-4 py-6 max-w-7xl">
+        <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="glitch-text font-mono text-4xl md:text-5xl font-bold text-cyber-primary tracking-tighter mb-2" data-text="NIGHT GAMES SYNC">NIGHT GAMES SYNC</h1>
+            <p className="text-cyber-muted font-mono text-sm tracking-widest uppercase">Cross-Atlantic Tactical Gaming Interface v2.4</p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <ConnectionStatus ping={45} location="USA" />
+            <button className="cyber-btn px-6 py-3 rounded font-mono text-cyber-primary font-bold uppercase tracking-wider text-sm">
+              <span className="flex items-center gap-2"><i data-lucide="zap" className="w-4 h-4"></i>Initiate Sync</span>
+            </button>
+          </div>
+        </header>
+
+        <section className="mb-8"><TimeSync currentTime={currentTime} /></section>
+        <section className="mb-8"><Countdown currentTime={currentTime} /></section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6"><GameVote games={games} /></div>
+
+          <div className="space-y-6">
+            <div className="glass-panel rounded-lg p-6 border-cyber border-cyber-secondary/30">
+              <h3 className="font-mono text-lg font-bold text-white mb-4 flex items-center gap-2"><i data-lucide="calendar-clock" className="w-5 h-5 text-cyber-secondary"></i>NEXT WINDOW</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center py-2 border-b border-white/10"><span className="text-cyber-muted">Date</span><span className="font-mono text-white">Friday, Dec 15</span></div>
+                <div className="flex justify-between items-center py-2 border-b border-white/10"><span className="text-cyber-muted">USA Start</span><span className="font-mono text-cyber-primary">08:00 PM EST</span></div>
+                <div className="flex justify-between items-center py-2 border-b border-white/10"><span className="text-cyber-muted">UA Start</span><span className="font-mono text-cyber-secondary">03:00 AM EET</span></div>
+                <div className="flex justify-between items-center py-2"><span className="text-cyber-muted">Duration</span><span className="font-mono text-white">4 Hours</span></div>
+              </div>
+            </div>
+
+            <div className="glass-panel rounded-lg p-6 border-cyber">
+              <h3 className="font-mono text-lg font-bold text-white mb-4">QUICK ACTIONS</h3>
+              <div className="space-y-3">
+                <button className="w-full cyber-btn py-3 rounded font-mono text-sm text-cyber-primary border border-cyber-primary/30 hover:bg-cyber-primary/10 transition-all flex items-center justify-center gap-2"><i data-lucide="message-square" className="w-4 h-4"></i>Squad Chat</button>
+                <button className="w-full cyber-btn py-3 rounded font-mono text-sm text-cyber-secondary border border-cyber-secondary/30 hover:bg-cyber-secondary/10 transition-all flex items-center justify-center gap-2"><i data-lucide="share-2" className="w-4 h-4"></i>Share Invite</button>
+                <button className="w-full cyber-btn py-3 rounded font-mono text-sm text-white border border-white/30 hover:bg-white/10 transition-all flex items-center justify-center gap-2"><i data-lucide="settings" className="w-4 h-4"></i>Sync Settings</button>
+              </div>
+            </div>
+
+            <div className="glass-panel rounded-lg p-4 border border-cyber-warning/30 bg-cyber-warning/5">
+              <div className="flex items-start gap-3">
+                <i data-lucide="alert-triangle" className="w-5 h-5 text-cyber-warning flex-shrink-0 mt-0.5"></i>
+                <div>
+                  <h4 className="font-mono text-sm font-bold text-cyber-warning mb-1">LATENCY ALERT</h4>
+                  <p className="text-xs text-gray-400 leading-relaxed">Connection to Ukraine servers showing 120ms+ latency. Consider switching to P2P hosting.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer className="mt-12 pt-6 border-t border-white/10 text-center"><p className="font-mono text-xs text-cyber-muted tracking-widest">NIGHT GAMES SYNC | EST. 2024 | SECURE CONNECTION ESTABLISHED</p></footer>
+      </div>
+    </div>
+  );
+}
+
+export default App;

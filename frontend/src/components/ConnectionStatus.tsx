@@ -1,5 +1,10 @@
-﻿function ConnectionStatus({ ping, location }) {
-  const getQuality = (ms) => {
+interface ConnectionStatusProps {
+  ping: number;
+  location: string;
+}
+
+function ConnectionStatus({ ping, location }: ConnectionStatusProps) {
+  const getQuality = (ms: number) => {
     if (ms < 50) return { label: "EXCELLENT", color: "text-cyber-success", dot: "bg-cyber-success" };
     if (ms < 100) return { label: "GOOD", color: "text-cyber-primary", dot: "bg-cyber-primary" };
     if (ms < 150) return { label: "FAIR", color: "text-cyber-warning", dot: "bg-cyber-warning" };
